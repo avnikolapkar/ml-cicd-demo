@@ -1,0 +1,91 @@
+name: CI-CD
+
+# WHEN does this pipeline run?
+on:
+  push:
+    branches: [main]          # every push to main -> CI + CD
+  pull_request:
+    branches: [main]          # every PR into main -> CI only
+
+jobs:
+  # ---------------- CI: is this change safe? ----------------
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get the code
+        uses: actions/checkout@v4
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Lint (code style + obvious bugs)
+        run: ruff check .
+
+      - name: Train model + quality gate
+        run: python -m src.train
+
+      - name: Run tests
+        run: pytest -v
+
+      - name: Upload model metrics
+        uses: actions/upload-artifact@v4
+        with:
+          name: metrics
+          path: model/metrics.json
+
+  # ---------------- CI: does it build & run as a container? ----------------
+  docker:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t ml-cicd-demo:${{ github.sha }} .
+
+      - name: Smoke test the container
+        run: |
+          docker run -d -p 8000:8000 --name api ml-cicd-demo:${{ github.sha }}
+          sleep 10
+          curl --fail http://localhost:8000/health
+
+  # ---------------- CD: deliver the tested image ----------------
+  deliver:
+    needs: docker
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        run: |
+          IMAGE=ghcr.io/$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          docker build -t $IMAGE:${{ github.sha }} -t $IMAGE:latest .
+          docker push $IMAGE:${{ github.sha }}
+          docker push $IMAGE:latest
+
+      - name: Trigger deployment (optional)
+        env:
+          DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: |
+          if [ -n "$DEPLOY_HOOK" ]; then
+            curl --fail -X POST "$DEPLOY_HOOK"
+          else
+            echo "No deploy hook set - image delivered to registry only."
+          fi
