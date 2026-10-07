@@ -14,7 +14,7 @@ from sklearn.model_selection import train_test_split
 MODEL_DIR = Path("model")
 MODEL_PATH = MODEL_DIR / "model.joblib"
 METRICS_PATH = MODEL_DIR / "metrics.json"
-MIN_R2 = 0.40  # quality gate: CI fails if the model is worse than this
+MIN_R2 = 0.9  # quality gate: CI fails if the model is worse than this
 
 
 def train() -> dict:
