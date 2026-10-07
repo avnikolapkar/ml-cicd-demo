@@ -10,8 +10,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 
 MODEL_PATH = Path("model") / "model.joblib"
-APP_VERSION = "1.0.0"
-
+APP_VERSION = "1.1.0"
 app = FastAPI(title="Diabetes Progression API", version=APP_VERSION)
 model = joblib.load(MODEL_PATH)
 
