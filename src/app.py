@@ -3,7 +3,7 @@
 Run:  uvicorn src.app:app --reload
 """
 from pathlib import Path
-import os
+
 import joblib
 import pandas as pd
 from fastapi import FastAPI
