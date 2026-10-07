@@ -3,7 +3,7 @@ from fastapi.testclient import TestClient
 from src.train import train
 
 train()  # make sure a model exists before the app loads it
-from src.app import app  # noqa: E402
+from src.app import app
 
 client = TestClient(app)
 
