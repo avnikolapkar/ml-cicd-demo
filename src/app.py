@@ -32,7 +32,8 @@ class Patient(BaseModel):
 
 @app.get("/health")
 def health():
-    return {"status": "OK", "version": APP_VERSION}
+    return {"status": "ok", "version": APP_VERSION}
+
 
 @app.post("/predict")
 def predict(patient: Patient):
